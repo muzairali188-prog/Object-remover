@@ -143,12 +143,13 @@ const App: React.FC = () => {
     } catch (error: any) {
       console.error("Removal process error:", error);
       
-      // If it's a rate limit error, trigger a 60-second cooldown
+      // If it's a rate limit error, trigger a cooldown. 
+      // 45 seconds is usually enough for the next minute-window to open.
       if (error.message.includes("Rate limit exceeded")) {
-        setCooldownRemaining(60);
-        alert("Google's Free Tier API is currently busy. Please wait 60 seconds for the system to cool down.");
+        setCooldownRemaining(45);
+        alert("The AI is currently at maximum capacity for the Free Tier. Cooldown initiated. Please wait 45 seconds.");
       } else {
-        alert(`AI Processing Error: ${error.message || "An unexpected error occurred."}`);
+        alert(`Error: ${error.message || "Something went wrong."}`);
       }
       
       setState(prev => ({ ...prev, isProcessing: false }));
@@ -189,7 +190,7 @@ const App: React.FC = () => {
     if (!state.currentImage) return;
     const link = document.createElement('a');
     link.href = state.currentImage;
-    link.download = `cleaned-photo-${Date.now()}.png`;
+    link.download = `studio-export-${Date.now()}.png`;
     link.click();
   };
 
