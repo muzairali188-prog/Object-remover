@@ -7,10 +7,10 @@ import { GoogleGenAI } from "@google/genai";
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
- * Resizes a base64 image to a maximum dimension while maintaining aspect ratio.
- * This reduces the payload size sent to Gemini, which helps prevent 429 Rate Limit errors.
+ * Compresses and resizes a base64 image to be "lighter" for the Free Tier API.
+ * 512px is the sweet spot for reliability on the Gemini Free Tier.
  */
-async function optimizeImage(base64: string, maxDim: number = 1024): Promise<string> {
+async function optimizeImageForFreeTier(base64: string, maxDim: number = 512): Promise<{data: string, mime: string}> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => {
@@ -34,19 +34,31 @@ async function optimizeImage(base64: string, maxDim: number = 1024): Promise<str
       const ctx = canvas.getContext('2d');
       if (!ctx) return reject("Canvas context failure");
       
+      // Use a white background for JPEGs if needed, though mostly we want transparency handled by the surgical stitching logic in App.tsx
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, width, height);
       ctx.drawImage(img, 0, 0, width, height);
-      // Return just the base64 data part
-      resolve(canvas.toDataURL('image/png').split(',')[1]);
+      
+      // JPEG is much lighter for the 'Original' photo. Mask remains PNG for strict binary.
+      const isMask = base64.length < 50000 && base64.includes('image/png'); 
+      const mime = isMask ? 'image/png' : 'image/jpeg';
+      const quality = isMask ? 1.0 : 0.8;
+      
+      const dataUrl = canvas.toDataURL(mime, quality);
+      resolve({
+        data: dataUrl.split(',')[1],
+        mime: mime
+      });
     };
-    img.onerror = () => reject("Failed to load image for optimization");
+    img.onerror = () => reject("Failed to load image");
     img.src = base64;
   });
 }
 
 /**
- * Executes an AI task with exponential backoff for rate limits (429).
+ * Executes an AI task with aggressive backoff and jitter for Free Tier limits.
  */
-async function callWithRetry(fn: () => Promise<any>, maxRetries = 3) {
+async function callWithRetry(fn: () => Promise<any>, maxRetries = 2) {
   let lastError: any;
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -57,10 +69,10 @@ async function callWithRetry(fn: () => Promise<any>, maxRetries = 3) {
       const isRateLimit = error.status === 429 || errorMsg.includes("429") || errorMsg.includes("Too many requests");
       
       if (isRateLimit && i < maxRetries - 1) {
-        // First retry after 8s, second after 20s. 
-        // Free tier resets are usually 60s windows, so we space them out.
-        const waitTime = i === 0 ? 8000 : 20000;
-        console.warn(`Rate limit hit. Retrying in ${waitTime/1000}s (Attempt ${i + 1}/${maxRetries})...`);
+        // Add random jitter (1-3 seconds) to prevent "thundering herd"
+        const jitter = Math.random() * 2000;
+        const waitTime = (i === 0 ? 10000 : 25000) + jitter;
+        console.warn(`Free Tier busy. Jittered retry in ${Math.round(waitTime/1000)}s...`);
         await sleep(waitTime);
         continue;
       }
@@ -73,16 +85,16 @@ async function callWithRetry(fn: () => Promise<any>, maxRetries = 3) {
 export async function removeObject(originalBase64: string, maskBase64: string): Promise<string> {
   const apiKey = process.env.API_KEY;
   if (!apiKey || apiKey === 'undefined') {
-    throw new Error("API Key not found. Please check your Netlify environment variables.");
+    throw new Error("API Key missing. Add it to your Netlify Environment Variables.");
   }
 
   const ai = new GoogleGenAI({ apiKey });
   
   try {
-    // Optimize images before sending to stay within free tier 'cost' limits
-    const [optimizedOriginal, optimizedMask] = await Promise.all([
-      optimizeImage(originalBase64, 1024),
-      optimizeImage(maskBase64, 1024)
+    // 512px is significantly more reliable for the Free Tier
+    const [optOrig, optMask] = await Promise.all([
+      optimizeImageForFreeTier(originalBase64, 512),
+      optimizeImageForFreeTier(maskBase64, 512)
     ]);
 
     const response = await callWithRetry(async () => {
@@ -90,45 +102,29 @@ export async function removeObject(originalBase64: string, maskBase64: string): 
         model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
-            {
-              text: "Task: Remove object in the WHITE mask area. Fill background seamlessly. Output ONLY the resulting image.",
-            },
-            {
-              inlineData: {
-                data: optimizedOriginal,
-                mimeType: 'image/png',
-              },
-            },
-            {
-              inlineData: {
-                data: optimizedMask,
-                mimeType: 'image/png',
-              },
-            },
+            { text: "Remove the object in the white area. Fill background naturally. Result only." },
+            { inlineData: { data: optOrig.data, mimeType: optOrig.mime } },
+            { inlineData: { data: optMask.data, mimeType: optMask.mime } },
           ],
         },
       });
     });
 
     if (response.candidates?.[0]?.finishReason === 'SAFETY') {
-      throw new Error("Safety filter blocked this request. Try a different image or selection.");
+      throw new Error("The AI safety filter blocked this content.");
     }
 
     const imagePart = response.candidates?.[0]?.content?.parts.find(p => p.inlineData);
-    
     if (imagePart?.inlineData?.data) {
       return `data:image/png;base64,${imagePart.inlineData.data}`;
     }
 
-    throw new Error("The AI failed to generate the image. Try a smaller selection.");
+    throw new Error("No output generated. Try a smaller brush.");
   } catch (error: any) {
-    console.error("Gemini Service Error:", error);
-    
-    const errorMsg = error.message || "";
-    if (error.status === 429 || errorMsg.includes("429") || errorMsg.includes("Too many requests")) {
-      throw new Error("Rate limit exceeded. The Free Tier has a strict limit on how many images can be processed per minute. Please wait for the cooldown timer.");
+    const msg = error.message || "";
+    if (error.status === 429 || msg.includes("429") || msg.includes("Too many requests")) {
+      throw new Error("SYSTEM_BUSY");
     }
-
     throw error;
   }
 }
