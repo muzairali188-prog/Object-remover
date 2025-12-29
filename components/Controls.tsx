@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ToolMode } from '../types';
+import { ToolMode } from '../types.ts';
 
 interface ControlsProps {
   brushSize: number;
@@ -37,11 +37,8 @@ const Controls: React.FC<ControlsProps> = ({
     <footer className="relative z-50 bg-background-dark/95 backdrop-blur-3xl border-t border-white/5 pb-12 pt-6 px-6 animate-in slide-in-from-bottom duration-700">
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col gap-6">
-          
-          {/* Simplified Brush Control */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-4 bg-surface-dark/30 p-4 rounded-2xl border border-white/5 shadow-inner">
-               {/* Minus Stepper */}
                <button 
                  onClick={() => onBrushSizeChange(Math.max(5, brushSize - 5))}
                  className="size-10 flex items-center justify-center rounded-xl bg-white/5 text-white/40 hover:text-primary hover:bg-primary/10 transition-all active:scale-90"
@@ -50,9 +47,7 @@ const Controls: React.FC<ControlsProps> = ({
                  <span className="material-symbols-outlined text-[20px]">remove</span>
                </button>
 
-               {/* Custom Styled Slider */}
                <div className="flex-1 relative flex items-center group h-10 px-2">
-                  {/* Track Background */}
                   <div className="absolute inset-x-2 h-1.5 bg-white/5 rounded-full overflow-hidden">
                     <div 
                       className="h-full bg-gradient-to-r from-primary/20 to-primary transition-all duration-300 shadow-[0_0_15px_rgba(48,232,122,0.3)]" 
@@ -60,7 +55,6 @@ const Controls: React.FC<ControlsProps> = ({
                     ></div>
                   </div>
                   
-                  {/* Visual Preview Overlay (Ghost Circle) */}
                   <div 
                     className="absolute pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 -top-12 left-1/2 -translate-x-1/2"
                     style={{ left: `calc(${((brushSize - 5) / (120 - 5)) * 100}% )` }}
@@ -88,7 +82,6 @@ const Controls: React.FC<ControlsProps> = ({
                   />
                </div>
 
-               {/* Plus Stepper */}
                <button 
                  onClick={() => onBrushSizeChange(Math.min(120, brushSize + 5))}
                  className="size-10 flex items-center justify-center rounded-xl bg-white/5 text-white/40 hover:text-primary hover:bg-primary/10 transition-all active:scale-90"
@@ -99,10 +92,7 @@ const Controls: React.FC<ControlsProps> = ({
             </div>
           </div>
 
-          {/* Unified Action Bar - Icons Only */}
           <div className="grid grid-cols-12 gap-4 items-center">
-            
-            {/* Tool Toggle (Left) */}
             <div className="col-span-4 flex bg-surface-dark/50 p-1 rounded-2xl border border-white/5 shadow-inner">
               <button 
                 onClick={() => onToolModeChange(ToolMode.BRUSH)}
@@ -127,7 +117,6 @@ const Controls: React.FC<ControlsProps> = ({
               </button>
             </div>
 
-            {/* Main Center Action - Icon Only */}
             <div className="col-span-5 flex justify-center">
               <button 
                 onClick={onRemove}
@@ -150,7 +139,6 @@ const Controls: React.FC<ControlsProps> = ({
               </button>
             </div>
 
-            {/* History Section (Right) */}
             <div className="col-span-3 flex bg-surface-dark/50 p-1 rounded-2xl border border-white/5 shadow-inner">
               <button 
                 onClick={onUndo}
@@ -169,7 +157,6 @@ const Controls: React.FC<ControlsProps> = ({
                 <span className="material-symbols-outlined text-[22px]">redo</span>
               </button>
             </div>
-
           </div>
         </div>
       </div>

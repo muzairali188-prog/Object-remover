@@ -1,6 +1,6 @@
 
 import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { Point, ToolMode } from '../types';
+import { Point, ToolMode } from '../types.ts';
 
 interface CanvasEditorProps {
   imageUrl: string | null;
@@ -41,7 +41,6 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({
   const [mousePos, setMousePos] = useState<{ x: number, y: number, isOverImage: boolean } | null>(null);
   const [loadingMessage, setLoadingMessage] = useState("Initializing neural core...");
 
-  // Update canvas size when image changes
   useEffect(() => {
     if (!imageUrl || !containerRef.current) return;
 
@@ -71,7 +70,6 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({
     };
   }, [imageUrl]);
 
-  // Sync mask to canvas
   useEffect(() => {
     if (!canvasRef.current || naturalSize.width === 0) return;
     const ctx = canvasRef.current.getContext('2d');
@@ -89,7 +87,6 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({
     }
   }, [naturalSize, maskUrl]);
 
-  // Rotate loading messages
   useEffect(() => {
     if (!isProcessing) {
       setLoadingMessage("Scanning environment...");
@@ -109,8 +106,6 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({
     if (!canvas) return null;
 
     const rect = canvas.getBoundingClientRect();
-    
-    // Convert screen coordinates to relative coordinates within the scaled/panned canvas
     const normX = (clientX - rect.left) / rect.width;
     const normY = (clientY - rect.top) / rect.height;
 
@@ -158,7 +153,6 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Brush size remains consistent relative to the image
     const scaleFactor = naturalSize.width / displaySize.width;
     const actualBrushSize = (brushSize / zoom) * scaleFactor;
 
@@ -274,7 +268,6 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({
             </div>
           </div>
 
-          {/* Floating Zoom Controls */}
           <div className="absolute top-6 right-6 flex flex-col gap-2 z-[60]">
             <div className="bg-surface-dark/80 backdrop-blur-xl border border-white/10 rounded-2xl p-1.5 flex flex-col gap-1 shadow-2xl">
               <button onClick={() => handleZoom(0.5)} className="size-10 flex items-center justify-center rounded-xl text-white/60 hover:text-primary hover:bg-primary/10 transition-all">
@@ -294,7 +287,6 @@ const CanvasEditor: React.FC<CanvasEditorProps> = ({
             </div>
           </div>
 
-          {/* Custom Brush Cursor */}
           {!isProcessing && mousePos && mousePos.isOverImage && toolMode !== ToolMode.PAN && (
             <div 
               className="fixed pointer-events-none rounded-full border-2 border-primary/80 bg-primary/10 z-[100] shadow-[0_0_15px_rgba(48,232,122,0.5)] transition-transform duration-75"

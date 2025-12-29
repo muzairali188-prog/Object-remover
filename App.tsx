@@ -1,10 +1,10 @@
 
 import React, { useState, useCallback } from 'react';
-import Header from './components/Header';
-import CanvasEditor from './components/CanvasEditor';
-import Controls from './components/Controls';
-import { ToolMode, AppState } from './types';
-import { removeObject } from './services/geminiService';
+import Header from './components/Header.tsx';
+import CanvasEditor from './components/CanvasEditor.tsx';
+import Controls from './components/Controls.tsx';
+import { ToolMode, AppState } from './types.ts';
+import { removeObject } from './services/geminiService.ts';
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({
@@ -20,11 +20,6 @@ const App: React.FC = () => {
 
   const [redoStack, setRedoStack] = useState<string[]>([]);
 
-  // Surgical Compositing: 
-  // 1. Takes the B&W mask and turns Black pixels into Transparent pixels.
-  // 2. Clips the AI-generated image using this "True Alpha Mask".
-  // 3. Pastes the result over the Original Image.
-  // This ensures 100% pixel-perfect preservation of everything outside the mask.
   const compositeSurgicalResult = (originalSrc: string, aiResultSrc: string, maskSrc: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const originalImg = new Image();
@@ -41,7 +36,6 @@ const App: React.FC = () => {
           const ctx = canvas.getContext('2d');
           if (!ctx) return reject("Failed to get context");
 
-          // Step 1: Process the Mask into an Alpha Mask
           const maskProcCanvas = document.createElement('canvas');
           maskProcCanvas.width = originalImg.width;
           maskProcCanvas.height = originalImg.height;
@@ -52,34 +46,27 @@ const App: React.FC = () => {
           const maskData = mCtx.getImageData(0, 0, maskProcCanvas.width, maskProcCanvas.height);
           const pixels = maskData.data;
           
-          // Use luminance to determine alpha. White (255) = Opaque, Black (0) = Transparent.
           for (let i = 0; i < pixels.length; i += 4) {
             const r = pixels[i];
             const g = pixels[i+1];
             const b = pixels[i+2];
-            // Average the RGB to get brightness and set it as alpha
             const avg = (r + g + b) / 3;
             pixels[i+3] = avg; 
           }
           mCtx.putImageData(maskData, 0, 0);
 
-          // Step 2: Draw the Original Foundation
           ctx.drawImage(originalImg, 0, 0);
 
-          // Step 3: Draw the AI result but only through the Alpha Mask
           const finalOverlayCanvas = document.createElement('canvas');
           finalOverlayCanvas.width = originalImg.width;
           finalOverlayCanvas.height = originalImg.height;
           const fCtx = finalOverlayCanvas.getContext('2d');
           if (!fCtx) return reject("Final overlay error");
 
-          // Draw the AI image first
           fCtx.drawImage(aiImg, 0, 0, originalImg.width, originalImg.height);
-          // Clip it with our processed mask
           fCtx.globalCompositeOperation = 'destination-in';
           fCtx.drawImage(maskProcCanvas, 0, 0);
 
-          // Step 4: Layer the clipped AI results back onto the original
           ctx.drawImage(finalOverlayCanvas, 0, 0);
 
           resolve(canvas.toDataURL('image/png'));
@@ -132,10 +119,7 @@ const App: React.FC = () => {
     setState(prev => ({ ...prev, isProcessing: true }));
 
     try {
-      // Step 1: Get AI prediction
       const aiResultRaw = await removeObject(currentOriginal, currentMask);
-      
-      // Step 2: Perform high-precision surgical compositing to protect unmasked pixels
       const finalCompositedResult = await compositeSurgicalResult(currentOriginal, aiResultRaw, currentMask);
 
       setState(prev => ({
@@ -212,7 +196,6 @@ const App: React.FC = () => {
           isProcessing={state.isProcessing}
         />
 
-        {/* Floating Compare Button */}
         {state.currentImage && state.originalImage !== state.currentImage && !state.isProcessing && (
           <div className="absolute bottom-6 z-10 w-full flex justify-center px-4">
             <button 
