@@ -2,14 +2,9 @@
 import { GoogleGenAI } from "@google/genai";
 
 export async function removeObject(originalBase64: string, maskBase64: string): Promise<string> {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please ensure your environment is configured correctly.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey });
+  // ALWAYS initialize with a named parameter using process.env.API_KEY directly.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // Extract just the base64 data without the data:image/... prefix
   const cleanOriginal = originalBase64.split(',')[1];
   const cleanMask = maskBase64.split(',')[1];
 
@@ -47,15 +42,16 @@ export async function removeObject(originalBase64: string, maskBase64: string): 
       throw new Error("The AI failed to generate a result. Try a larger or more specific selection.");
     }
 
+    // Iterate through response parts to find the image part, as recommended.
     const imagePart = response.candidates[0].content.parts.find(p => p.inlineData);
     
     if (imagePart?.inlineData?.data) {
       return `data:image/png;base64,${imagePart.inlineData.data}`;
     }
 
-    const textPart = response.candidates[0].content.parts.find(p => p.text);
-    if (textPart?.text) {
-      throw new Error(`AI was unable to process: ${textPart.text}`);
+    // Access the .text property directly for string output/errors from the model.
+    if (response.text) {
+      throw new Error(`AI was unable to process: ${response.text}`);
     }
 
     throw new Error("No image was returned. Please try again.");

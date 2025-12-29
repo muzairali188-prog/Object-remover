@@ -13,14 +13,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
-        // Shim for process.env used in client-side Gemini service
-        // The Netlify build command will replace 'undefined' with the actual key in the dist folder
-        window.process = {
-            env: {
-                API_KEY: undefined 
-            }
-        };
-
         tailwind.config = {
             darkMode: "class",
             theme: {
@@ -119,12 +111,12 @@
 <script type="importmap">
 {
   "imports": {
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
     "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.34.0",
+    "vite": "https://esm.sh/vite@^7.3.0",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
@@ -133,6 +125,7 @@
     <div class="ambient-glow" style="top: -200px; left: -200px;"></div>
     <div class="ambient-glow" style="bottom: -200px; right: -200px;"></div>
     <div id="root"></div>
-    <script type="module" src="/index.tsx"></script>
+    <!-- In Vite, the path to the entry point should be relative to the root -->
+    <script type="module" src="./index.tsx"></script>
 </body>
 </html>
