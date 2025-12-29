@@ -1,7 +1,8 @@
 {
-  "name": "Copy of 4 Copy of Object Remover AI",
+  "name": "Object Remover AI",
   "description": "A high-performance image editing application that uses Gemini AI to seamlessly remove unwanted objects from your photos. Simply upload, paint, and let the AI do the magic.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ]
 }
