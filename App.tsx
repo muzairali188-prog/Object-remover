@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Header from './components/Header.tsx';
 import CanvasEditor from './components/CanvasEditor.tsx';
 import Controls from './components/Controls.tsx';
@@ -19,6 +19,16 @@ const App: React.FC = () => {
   });
 
   const [redoStack, setRedoStack] = useState<string[]>([]);
+  const [cooldownRemaining, setCooldownRemaining] = useState<number>(0);
+
+  // Handle cooldown timer
+  useEffect(() => {
+    if (cooldownRemaining <= 0) return;
+    const timer = setInterval(() => {
+      setCooldownRemaining(prev => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldownRemaining]);
 
   const compositeSurgicalResult = (originalSrc: string, aiResultSrc: string, maskSrc: string): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -111,7 +121,7 @@ const App: React.FC = () => {
   }, []);
 
   const handleRemove = async () => {
-    if (!state.currentImage || !state.maskDataUrl || state.isProcessing) return;
+    if (!state.currentImage || !state.maskDataUrl || state.isProcessing || cooldownRemaining > 0) return;
 
     const currentOriginal = state.currentImage;
     const currentMask = state.maskDataUrl;
@@ -132,8 +142,15 @@ const App: React.FC = () => {
       setRedoStack([]);
     } catch (error: any) {
       console.error("Removal process error:", error);
-      // Show the actual error message so the user knows exactly why it failed
-      alert(`AI Processing Error: ${error.message || "An unexpected error occurred."}`);
+      
+      // If it's a rate limit error, trigger a 60-second cooldown
+      if (error.message.includes("Rate limit exceeded")) {
+        setCooldownRemaining(60);
+        alert("Google's Free Tier API is currently busy. Please wait 60 seconds for the system to cool down.");
+      } else {
+        alert(`AI Processing Error: ${error.message || "An unexpected error occurred."}`);
+      }
+      
       setState(prev => ({ ...prev, isProcessing: false }));
     }
   };
@@ -229,6 +246,7 @@ const App: React.FC = () => {
         isProcessing={state.isProcessing}
         hasImage={!!state.currentImage}
         hasMask={!!state.maskDataUrl}
+        cooldownRemaining={cooldownRemaining}
       />
     </div>
   );

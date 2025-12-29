@@ -15,6 +15,7 @@ interface ControlsProps {
   isProcessing: boolean;
   hasImage: boolean;
   hasMask: boolean;
+  cooldownRemaining?: number;
 }
 
 const Controls: React.FC<ControlsProps> = ({
@@ -29,9 +30,12 @@ const Controls: React.FC<ControlsProps> = ({
   canRedo,
   isProcessing,
   hasImage,
-  hasMask
+  hasMask,
+  cooldownRemaining = 0
 }) => {
   if (!hasImage) return null;
+
+  const isLocked = isProcessing || cooldownRemaining > 0;
 
   return (
     <footer className="relative z-50 bg-background-dark/95 backdrop-blur-3xl border-t border-white/5 pb-12 pt-6 px-6 animate-in slide-in-from-bottom duration-700">
@@ -97,6 +101,7 @@ const Controls: React.FC<ControlsProps> = ({
               <button 
                 onClick={() => onToolModeChange(ToolMode.BRUSH)}
                 title="Brush Tool"
+                disabled={isProcessing}
                 className={`flex-1 h-12 flex items-center justify-center rounded-xl transition-all duration-500 ${toolMode === ToolMode.BRUSH ? 'bg-primary text-background-dark shadow-[0_0_20px_rgba(48,232,122,0.4)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
               >
                 <span className="material-symbols-outlined text-[22px] filled">draw</span>
@@ -104,6 +109,7 @@ const Controls: React.FC<ControlsProps> = ({
               <button 
                 onClick={() => onToolModeChange(ToolMode.ERASER)}
                 title="Eraser Tool"
+                disabled={isProcessing}
                 className={`flex-1 h-12 flex items-center justify-center rounded-xl transition-all duration-500 ${toolMode === ToolMode.ERASER ? 'bg-primary text-background-dark shadow-[0_0_20px_rgba(48,232,122,0.4)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
               >
                 <span className="material-symbols-outlined text-[22px]">ink_eraser</span>
@@ -111,6 +117,7 @@ const Controls: React.FC<ControlsProps> = ({
               <button 
                 onClick={() => onToolModeChange(ToolMode.PAN)}
                 title="Navigation Tool"
+                disabled={isProcessing}
                 className={`flex-1 h-12 flex items-center justify-center rounded-xl transition-all duration-500 ${toolMode === ToolMode.PAN ? 'bg-primary text-background-dark shadow-[0_0_20px_rgba(48,232,122,0.4)]' : 'text-white/30 hover:text-white hover:bg-white/5'}`}
               >
                 <span className="material-symbols-outlined text-[22px]">pan_tool</span>
@@ -120,21 +127,29 @@ const Controls: React.FC<ControlsProps> = ({
             <div className="col-span-5 flex justify-center">
               <button 
                 onClick={onRemove}
-                disabled={!hasMask || isProcessing}
+                disabled={!hasMask || isLocked}
                 className={`relative w-full h-14 flex items-center justify-center rounded-2xl transition-all duration-500 overflow-hidden group ${
-                  hasMask && !isProcessing 
+                  hasMask && !isLocked 
                   ? 'bg-primary text-background-dark shadow-[0_10px_30px_rgba(48,232,122,0.3)] hover:shadow-[0_15px_40px_rgba(48,232,122,0.5)] hover:-translate-y-1' 
                   : 'bg-white/5 text-white/10 cursor-not-allowed border border-white/5'
                 }`}
               >
-                {hasMask && !isProcessing && (
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite] pointer-events-none opacity-50"></div>
-                )}
-                
-                <span className="material-symbols-outlined text-[26px] group-hover:rotate-12 transition-transform">magic_button</span>
+                {cooldownRemaining > 0 ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/40">API Cooldown: {cooldownRemaining}s</span>
+                  </div>
+                ) : (
+                  <>
+                    {hasMask && !isProcessing && (
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite] pointer-events-none opacity-50"></div>
+                    )}
+                    
+                    <span className="material-symbols-outlined text-[26px] group-hover:rotate-12 transition-transform">magic_button</span>
 
-                {hasMask && !isProcessing && (
-                  <div className="absolute top-2 right-2 size-2 bg-background-dark/20 rounded-full animate-ping"></div>
+                    {hasMask && !isProcessing && (
+                      <div className="absolute top-2 right-2 size-2 bg-background-dark/20 rounded-full animate-ping"></div>
+                    )}
+                  </>
                 )}
               </button>
             </div>

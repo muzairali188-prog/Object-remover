@@ -8,8 +8,9 @@ const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /**
  * Executes an AI task with exponential backoff for rate limits (429).
+ * Enhanced for Free Tier: Waits longer and provides clearer feedback.
  */
-async function callWithRetry(fn: () => Promise<any>, maxRetries = 3) {
+async function callWithRetry(fn: () => Promise<any>, maxRetries = 2) {
   let lastError: any;
   for (let i = 0; i < maxRetries; i++) {
     try {
@@ -19,8 +20,9 @@ async function callWithRetry(fn: () => Promise<any>, maxRetries = 3) {
       const isRateLimit = error.status === 429 || error.message?.includes("429") || error.message?.includes("Too many requests");
       
       if (isRateLimit && i < maxRetries - 1) {
-        // Exponential backoff: 2s, 4s, 8s...
-        const waitTime = Math.pow(2, i + 1) * 1000;
+        // Free tier often needs a significant pause.
+        // Waiting 5s then 15s to see if the window resets.
+        const waitTime = i === 0 ? 5000 : 15000;
         console.warn(`Rate limit hit. Retrying in ${waitTime}ms (Attempt ${i + 1}/${maxRetries})...`);
         await sleep(waitTime);
         continue;
@@ -32,7 +34,6 @@ async function callWithRetry(fn: () => Promise<any>, maxRetries = 3) {
 }
 
 export async function removeObject(originalBase64: string, maskBase64: string): Promise<string> {
-  // Check if API key exists to prevent silent failures
   const apiKey = process.env.API_KEY;
   if (!apiKey || apiKey === 'undefined') {
     throw new Error("API Key not found. Please add API_KEY to your Netlify Site Settings > Environment Variables.");
@@ -75,45 +76,37 @@ export async function removeObject(originalBase64: string, maskBase64: string): 
       });
     });
 
-    // Check if the generation was stopped by safety filters
     if (response.candidates?.[0]?.finishReason === 'SAFETY') {
-      throw new Error("The AI blocked this request due to safety filters. This can happen if the image is misinterpreted as sensitive content. Try a different image or selection.");
+      throw new Error("The AI blocked this request due to safety filters. Try a different image or selection.");
     }
 
     if (!response.candidates?.[0]?.content?.parts) {
-      throw new Error("The AI returned an empty response. The image might be too complex for the current model.");
+      throw new Error("The AI returned an empty response. The image might be too complex.");
     }
 
-    // Find the image part in the response
     const imagePart = response.candidates[0].content.parts.find(p => p.inlineData);
     
     if (imagePart?.inlineData?.data) {
       return `data:image/png;base64,${imagePart.inlineData.data}`;
     }
 
-    // Use the .text property to see if the AI returned a text-based error/explanation
     const textOutput = response.text;
     if (textOutput) {
       throw new Error(`AI feedback: ${textOutput}`);
     }
 
-    throw new Error("No image was generated. Try making your mask selection tighter around the object.");
+    throw new Error("No image was generated. Try making your mask selection tighter.");
   } catch (error: any) {
     console.error("Gemini Service Error:", error);
     
-    // Format common API errors for better user understanding
     if (error.status === 401 || error.message?.includes("401")) {
-      throw new Error("Invalid API Key. Please double-check your API_KEY in Netlify settings.");
+      throw new Error("Invalid API Key. Please check your Netlify settings.");
     }
     
     if (error.status === 429 || error.message?.includes("429") || error.message?.includes("Too many requests")) {
       throw new Error("Rate limit exceeded (Too many requests). If you are using a Free Tier key, Google restricts how many images you can process per minute. Please wait 60 seconds and try again.");
     }
 
-    if (error.message?.includes("fetch")) {
-      throw new Error("Network error. Please check your internet connection and try again.");
-    }
-    
     throw error;
   }
 }
