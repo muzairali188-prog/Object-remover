@@ -2,7 +2,11 @@
 import { GoogleGenAI } from "@google/genai";
 
 export async function removeObject(originalBase64: string, maskBase64: string): Promise<string> {
-  // ALWAYS initialize with a named parameter using process.env.API_KEY directly.
+  // Check if API key exists to prevent silent failures
+  if (!process.env.API_KEY || process.env.API_KEY === 'undefined') {
+    throw new Error("API Key not found in environment. Please add API_KEY to Netlify environment variables.");
+  }
+
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const cleanOriginal = originalBase64.split(',')[1];
@@ -14,13 +18,13 @@ export async function removeObject(originalBase64: string, maskBase64: string): 
       contents: {
         parts: [
           {
-            text: `Object Removal Task:
-1. Look at the 'Original Photo'.
-2. Look at the 'Binary Mask'.
-3. The WHITE area in the mask marks the object that must be removed.
-4. Replace the object in the WHITE area with a background that matches the surrounding environment perfectly (inpainting).
-5. Do not modify any pixels outside of the masked area.
-6. Return only the final modified image.`,
+            text: `High-Fidelity Image Inpainting Task:
+1. You are provided with an 'Original Image' and a 'Binary Selection Mask'.
+2. The WHITE pixels in the mask indicate the exact object to be removed.
+3. Your goal: Remove the object and fill the gap by intelligently synthesizing the surrounding texture, lighting, and patterns.
+4. The result must be photorealistic and completely seamless.
+5. Crucial: Do not add any new objects, watermarks, or text.
+6. Output ONLY the processed image data.`,
           },
           {
             inlineData: {
@@ -38,28 +42,40 @@ export async function removeObject(originalBase64: string, maskBase64: string): 
       },
     });
 
-    if (!response.candidates?.[0]?.content?.parts) {
-      throw new Error("The AI failed to generate a result. Try a larger or more specific selection.");
+    // Check if the generation was stopped by safety filters
+    if (response.candidates?.[0]?.finishReason === 'SAFETY') {
+      throw new Error("The AI blocked this request because it triggered safety filters. Try removing a different object or using a different image.");
     }
 
-    // Iterate through response parts to find the image part, as recommended.
+    if (!response.candidates?.[0]?.content?.parts) {
+      throw new Error("The AI returned an empty response. This can happen if the mask is too complex or the server is busy.");
+    }
+
+    // Find the image part in the response
     const imagePart = response.candidates[0].content.parts.find(p => p.inlineData);
     
     if (imagePart?.inlineData?.data) {
       return `data:image/png;base64,${imagePart.inlineData.data}`;
     }
 
-    // Access the .text property directly for string output/errors from the model.
-    if (response.text) {
-      throw new Error(`AI was unable to process: ${response.text}`);
+    // Use the .text property to see if the AI returned a text-based error/explanation
+    const textOutput = response.text;
+    if (textOutput) {
+      throw new Error(`AI feedback: ${textOutput}`);
     }
 
-    throw new Error("No image was returned. Please try again.");
+    throw new Error("No image was generated. Please try making your mask selection more precise.");
   } catch (error: any) {
-    console.error("Gemini Inpainting Error:", error);
-    if (error.message?.includes("safety")) {
-      throw new Error("The content was blocked by safety filters. Try a different image.");
+    console.error("Gemini Service Error:", error);
+    
+    // Format common API errors for better user understanding
+    if (error.status === 401 || error.message?.includes("401")) {
+      throw new Error("Invalid API Key. Please check your credentials.");
     }
-    throw new Error(error?.message || "Object removal failed.");
+    if (error.status === 429 || error.message?.includes("429")) {
+      throw new Error("Too many requests. Please wait a minute and try again.");
+    }
+    
+    throw error;
   }
 }

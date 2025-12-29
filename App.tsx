@@ -130,9 +130,10 @@ const App: React.FC = () => {
         history: [...prev.history, finalCompositedResult]
       }));
       setRedoStack([]);
-    } catch (error) {
-      console.error(error);
-      alert("Removal failed. Try making a tighter selection around the object.");
+    } catch (error: any) {
+      console.error("Removal process error:", error);
+      // Show the actual error message so the user knows exactly why it failed
+      alert(`AI Processing Error: ${error.message || "An unexpected error occurred."}`);
       setState(prev => ({ ...prev, isProcessing: false }));
     }
   };
