@@ -6,6 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Object Remover AI | Professional Suite</title>
     <meta name="description" content="AI-powered object removal directly in your browser. Seamlessly remove unwanted objects with Gemini 2.5 Flash." />
+    
+    <!-- Babel standalone for browser-side transpilation support -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -13,9 +17,10 @@
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <script>
         // Shim for process.env used in client-side Gemini service
+        // The Netlify build command defined in netlify.toml will replace 'undefined' with the actual key
         window.process = {
             env: {
-                API_KEY: undefined // This will be handled by the environment or build process
+                API_KEY: undefined 
             }
         };
 
